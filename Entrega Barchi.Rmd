@@ -1,0 +1,244 @@
+---
+title: "Proyecto Final Coderhouse"
+subtitle: "Análisis de datos de la Libreria Casa de Papel"
+author: "Augusto Barchi"
+date: "2023-11-10"
+output:
+  html_document: default
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE)
+```
+
+```{r df, echo=FALSE}
+library(dplyr)
+library(psych)
+library(readxl)
+library(ggplot2)
+df <- read_excel("Libreria_casa_de_papel.xlsx")
+```
+
+```{r df1}
+#str(df)
+head(df)
+summary(df)
+```
+
+<h3><strong><center>Análisis de Datos</center></strong></h3>
+<h5>Proporciona resúmenes estadísticos separados para las variables categóricas y numéricas en el conjunto de datos, ofreciendo una comprensión rápida de la distribución y características de ambas tipos de variables.</h5>
+<h4><strong><center>Resumen de Variables Categóricas</center></strong></h4>
+```{r seleccionado, echo=FALSE}
+df_seleccionado1 <-select(df,c("Prioridad","Categoria","Subcategoria"))
+summary(df_seleccionado1)
+```
+
+<h4><strong><center>Resumen de Variables Numéricas</center></strong></h4>
+```{r seleccionado2, echo=FALSE}
+df_seleccionado2 <-select(df, c("Cantidad", "Ventas", "Margen", "Utilidad","Descuento","Precio_venta","Precio_costo","Costo_envio"))
+summary(df_seleccionado2)
+```
+
+<h5>Primeramente se estudia la información sobre las dimensiones de un conjunto de datos y, si hay valores faltantes, también informa sobre la cantidad total de valores faltantes y la cantidad de valores faltantes por columna, para luego si estudio.</h5>
+
+```{r NA, echo=FALSE}
+# Definir la función
+describir_dataset <- function(datos) {
+  # Obtener el número de filas y columnas del dataset
+  num_filas <- nrow(datos)
+  num_columnas <- ncol(datos)
+  
+  # Verificar la presencia de datos NA
+  hay_na <- anyNA(datos)
+  
+  if (hay_na) {
+    # Calcular el número total de NAs
+    total_nas <- sum(is.na(datos))
+    
+    # Calcular la cantidad de NAs por columna
+    nas_por_columna <- colSums(is.na(datos))
+    
+    # Crear una tabla con la información
+    tabla_resumen <- data.frame(
+      Numero_de_Filas = num_filas,
+      Numero_de_Columnas = num_columnas,
+      Total_de_NAs = total_nas,
+      NAs_por_Columna = nas_por_columna
+    )
+    
+    # Imprimir la tabla en la consola
+    print(tabla_resumen)
+    
+  } else {
+    # Si no hay NAs, imprimir solo las dimensiones del dataset
+    cat("Número de Filas:", num_filas, "\n")
+    cat("Número de Columnas:", num_columnas, "\n")
+    cat("No hay datos NA en el dataset.\n")
+  }
+}
+
+describir_dataset(df)
+
+```
+
+<h3><strong><center>Agrupar la variable Region y calcular una estadística resumen</center></strong></h3>
+
+<h5>Se selecciona solo las columnas de interés del conjunto de datos original y se realiza operaciones de manipulación y resumen de datos, proporcionando estadísticas específicas sobre las ventas y la utilidad para cada región del conjunto de datos.</h5>
+```{r df_resumen}
+
+# Seleccionar solo las columnas que nos interesan
+df_seleccionado <-select(df, c("Id", "Fecha_orden","Prioridad","Cantidad", "Ventas", "Margen", "Utilidad", "Categoria", "Subcategoria"))
+
+# Filtrar los registros que cumplan con dos condiciones
+df_filtrado <- filter(df_seleccionado, Prioridad == "Alta" & Ventas > 1000)
+
+# Realizar una transformación en una nueva columna
+df_con_nueva_columna <- mutate(df_filtrado,Utilidad_porcentual = (Utilidad / Ventas) * 100)
+
+# Agrupar una variable Region y calcular una estadística resumen
+df_resumen <- df %>%
+  group_by(Region) %>%
+  summarize(Ventas_promedio = mean(Ventas),
+            Utilidad_total = sum(Utilidad))
+
+print(df_resumen)
+```
+
+<h3><strong><center>Suma de Ventas Filtrado y Agrupado por Categoría y Subcategoría</center></h3></strong>
+<h5>Se realiza una operación de filtrado y agrupación en un conjunto de datos para Imprimir en la consola el conjunto de datos resultante, que contiene la suma total de las ventas agrupadas por "Categoria" y "Subcategoria</h5>
+```{r df_filtrado_y_agrupado}
+# Filtrar y luego agrupar con ventas mayores a 1000 y cantidad 10 agrupado por categoria y subcat.
+# de eso calculando la suma de las ventas
+df_filtrado_y_agrupado <- df %>%
+  filter(Precio_venta > 1000 & Cantidad > 10) %>%
+  group_by(Categoria, Subcategoria) %>%
+  summarize(Ventas_totales = sum(Ventas))
+print(df_filtrado_y_agrupado)
+```
+
+<h3><strong><center>Ventas por Region</center></strong></h3>
+<h5>Se genera un gráfico de barras que muestra las ventas promedio por región, utilizando colores graduados para representar la magnitud de las ventas. Este gráfico proporciona una visualización rápida y efectiva de las diferencias en las ventas entre regiones.</h5>
+```{r graficos}
+
+ventas_por_region <- df %>%
+  group_by(Region) %>%
+    summarise(Ventas = mean(Ventas))
+# Crear una variable numérica para el grado de color (usamos la suma de ventas directamente)
+ventas_por_region$Color_Gradiente <- ventas_por_region$Ventas
+
+ggplot(ventas_por_region, aes(x = reorder(Region, -Ventas), y = Ventas, fill = Color_Gradiente)) +
+  geom_bar(stat = "identity") +
+ scale_fill_gradient(low = "#dc0000", high = "#560000") +  # Definir los colores de inicio (low) y fin (high)
+  
+  labs(
+    x = "Region",
+    y = "Ventas"
+  )  +
+  theme(
+    plot.title = element_text(hjust = 0.5),  # Centrar el título
+  ) 
+```
+
+<h3><strong><center>Ventas por Categoría</center></strong></h3>
+<h5>Se genera un gráfico de barras que muestra las ventas promedio por categoría, utilizando colores graduados para representar la magnitud de las ventas. Este gráfico proporciona una visualización rápida y efectiva de las diferencias en las ventas entre categorías.</h5>
+```{r}
+ventas_por_categoria <- df %>%
+  group_by(Categoria) %>%
+  summarise(
+    Ventas = mean(Ventas)
+  )
+ventas_por_categoria$Color_Gradiente <- ventas_por_categoria$Ventas
+
+ggplot(ventas_por_categoria, aes(x = reorder(Categoria, -Ventas), y = Ventas, fill = Color_Gradiente)) +
+  geom_bar(stat = "identity") +
+  scale_fill_gradient(low = "#dc0000", high = "#560000") +  # Definir los colores de inicio (low) y fin (high)
+  labs(
+    x = "Categoría",
+    y = "Ventas"
+  )  +
+  theme(
+    plot.title = element_text(hjust = 0.5),  # Centrar el título
+  )
+```
+
+<h3><strong><center>Análisis de Datos PCA</center></strong></h3>
+<h5>Se muestra un resumen del PCA, incluyendo descriptores estadísticos, la proporción de varianza explicada por cada componente principal y la varianza acumulada.</h5>
+```{r PCA, echo=FALSE}
+# Realizar el PCA
+pca_dataset <- prcomp(df[, c("Cantidad", "Ventas", "Descuento", "Margen", "Utilidad", "Precio_venta", "Precio_costo")], # Selecciona las variables que deseas incluir en el PCA
+                      center = TRUE, # Centrar valores en media cero
+                      scale = TRUE) # Estandarizar variables con sd = 1
+# Muestra de nombres y otros resultados del PCA
+#names(pca_dataset)
+pca_dataset$center
+pca_dataset$scale
+pca_dataset$rotation
+#dim(pca_dataset$rotation)
+#pca_dataset$sdev
+#pca_dataset$sdev^2
+#pca_dataset$x
+
+
+# Correlación entre data original y componentes principales
+#round(cor(df[, c("Cantidad", "Ventas", "Descuento", "Margen", "Utilidad", "Precio_venta", "Precio_costo")], pca_dataset$x), digits = 3)
+
+# Muestro resumen de PCA, STD, Proporción de Varianza y Acumulado
+summary(pca_dataset)
+```
+
+<h5>Se crea un gráfico de dispersión para visualizar las observaciones en el espacio bidimensional definido por los dos primeros componentes principales. Este gráfico permite visualizar patrones y relaciones entre las observaciones en términos de las nuevas variables (componentes principales) generadas por el PCA.</h5>
+```{r PCAplot1}
+# Scatter plots entre dos componentes
+plot(
+  pca_dataset$x[,1], # 1er componente
+  pca_dataset$x[,2], # 2do componente
+  xlab = "PCA 1",
+  ylab = "PCA 2"
+)
+```
+
+<h3><strong><center>Scree Plot</h3></strong></center>
+<h5>Proporciona visualizaciones importantes para entender la distribución de la varianza en los componentes principales, especialmente a través de los gráficos de barras y el Scree Plot. Además, crea un data frame con las coordenadas de las observaciones en el espacio bidimensional del PCA y agrega información categórica para representar los datos por región.</h5>
+```{r PCAplot2}
+# Autovalores
+autovalores <- pca_dataset$sdev^2
+
+# Cálculo porcentaje explicado
+pca_var_pct <- round(autovalores / sum(autovalores) * 100, digits = 2)
+barplot(pca_var_pct, xlab = "Componente Principal", ylab = "Variación Porcentual")
+
+# Scree plot
+screeplot(pca_dataset, type = "l", main = "Screeplot dataset")
+
+# Gráfico con ggplot2 agrupado por país
+pca_data <- data.frame(
+  x = pca_dataset$x[, 1], # 1er componente
+  y = pca_dataset$x[, 2] # 2do componente
+)
+
+# Agregar una columna de país al dataframe
+pca_data$Region <- df$Region
+```
+
+<h3><strong><center>Gráfico PCA por País</h3></strong></center>
+<h5>Se genera un gráfico de dispersión que muestra la distribución de las observaciones en el espacio bidimensional del PCA, con colores distintivos para cada región. Este tipo de gráfico facilita la identificación de patrones o agrupaciones en los datos en función de las nuevas dimensiones obtenidas mediante el PCA.</h5>
+```{r PCAplot3}
+# Gráfico agrupado por país
+
+# Crear el gráfico de dispersión con ggplot2
+ggplot(pca_data, aes(x = x, y = y, color = Region)) +
+  geom_point() +
+  labs(x = "Primer Componente Principal", y = "Segundo Componente Principal") 
+         
+```
+
+<h3><strong><center>Gráfico de Análisis de Componentes Principales</h3></strong></center>
+<h5>Se genera un gráfico de biplot que proporciona información sobre la distribución de las observaciones y la contribución de las variables originales en el espacio bidimensional definido por los dos primeros componentes principales del PCA. La coloración por región facilita la identificación de patrones y agrupaciones en los datos.</h5>
+```{r PCAplot4}
+library(ggbiplot)
+ggbiplot(pca_dataset, scale = 1, 
+         ellipse = TRUE,
+         labels = rownames(df),
+         groups = df$Region
+         )+
+    theme(plot.title = element_text(hjust = 0.5),)  # Centrar el título
+```
